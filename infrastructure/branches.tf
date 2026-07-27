@@ -16,7 +16,7 @@ resource "github_branch_protection" "main" {
 
   required_status_checks {
     strict   = true
-    contexts = []
+    contexts = ["backend", "frontend"]
   }
 
   enforce_admins      = false
@@ -30,7 +30,7 @@ resource "github_branch_protection" "develop" {
 
   required_status_checks {
     strict   = true
-    contexts = []
+    contexts = ["backend", "frontend"]
   }
 
   enforce_admins      = false
