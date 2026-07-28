@@ -146,4 +146,21 @@ public class AuthService
 
         mail.sendVerificationCode(user.getEmail(), code);
     }
+
+    @Transactional(readOnly = true)
+    public UserResponse getCurrentUser(Long userId) 
+    {
+        UserEntity user = users.findById(userId)
+            .orElseThrow(() -> new AuthException("user not found"));
+        return new UserResponse(
+            user.getId(),
+            user.getUsername(),
+            user.getEmail(),
+            user.getCurrentRating(),
+            user.getGamesPlayed(),
+            user.getWins(),
+            user.getLosses(),
+            user.getDraws()
+        );
+    }
 }
