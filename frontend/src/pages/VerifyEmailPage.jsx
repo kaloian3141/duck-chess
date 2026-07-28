@@ -8,7 +8,6 @@ export function VerifyEmailPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Email may be prefilled if user just registered
   const [email, setEmail] = useState(location.state?.email || '');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
@@ -16,36 +15,49 @@ export function VerifyEmailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
 
-  async function handleSubmit(e) {
+  async function handleSubmit(e) 
+  {
     e.preventDefault();
     setError('');
     setInfo('');
     setSubmitting(true);
-    try {
+    try 
+    {
       await verifyEmail(email, code);
       setInfo('Email verified! Redirecting to login...');
       setTimeout(() => navigate('/login'), 1200);
-    } catch (err) {
+    }
+    catch(err)
+    {
       setError(err instanceof ApiError ? err.message : 'Unexpected error');
-    } finally {
+    } 
+    finally 
+    {
       setSubmitting(false);
     }
   }
 
-  async function handleResend() {
-    if (!email) {
+  async function handleResend() 
+  {
+    if(!email) 
+    {
       setError('Enter your email first');
       return;
     }
     setError('');
     setInfo('');
     setResending(true);
-    try {
+    try 
+    {
       await resendVerification(email);
       setInfo('New code sent — check your email');
-    } catch (err) {
+    }
+    catch(err)
+    {
       setError(err instanceof ApiError ? err.message : 'Unexpected error');
-    } finally {
+    } 
+    finally 
+    {
       setResending(false);
     }
   }

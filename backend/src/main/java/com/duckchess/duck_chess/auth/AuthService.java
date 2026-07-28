@@ -110,7 +110,7 @@ public class AuthService
         return new MessageResponse("verification code sent");
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public TokenResponse login(LoginRequest req) 
     {
         Optional<UserEntity> lookup = req.usernameOrEmail().contains("@")
@@ -126,6 +126,7 @@ public class AuthService
         }
         if(!user.isEmailVerified()) 
         {
+            issueAndSendCode(user);
             throw new AuthException("email not verified");
         }
 
