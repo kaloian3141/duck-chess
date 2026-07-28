@@ -282,7 +282,7 @@ class AuthServiceTest
     }
 
     @Test
-    void loginBlocksUnverifiedUser() 
+    void loginBlocksUnverifiedUserAndSendsFreshCode() 
     {
         UserEntity user = unverifiedUser();
         when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
@@ -294,6 +294,8 @@ class AuthServiceTest
                 .hasMessageContaining("not verified");
 
         verify(jwt, never()).generate(anyLong(), anyString());
+        verify(verifications).save(any(EmailVerificationEntity.class));
+        verify(mail).sendVerificationCode(eq(user.getEmail()), anyString());
     }
 
     @Test

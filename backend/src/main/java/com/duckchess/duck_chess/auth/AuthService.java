@@ -110,7 +110,7 @@ public class AuthService
         return new MessageResponse("verification code sent");
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public TokenResponse login(LoginRequest req) 
     {
         Optional<UserEntity> lookup = req.usernameOrEmail().contains("@")
@@ -126,6 +126,7 @@ public class AuthService
         }
         if(!user.isEmailVerified()) 
         {
+            issueAndSendCode(user);
             throw new AuthException("email not verified");
         }
 
@@ -145,5 +146,22 @@ public class AuthService
         verifications.save(v);
 
         mail.sendVerificationCode(user.getEmail(), code);
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponse getCurrentUser(Long userId) 
+    {
+        UserEntity user = users.findById(userId)
+            .orElseThrow(() -> new AuthException("user not found"));
+        return new UserResponse(
+            user.getId(),
+            user.getUsername(),
+            user.getEmail(),
+            user.getCurrentRating(),
+            user.getGamesPlayed(),
+            user.getWins(),
+            user.getLosses(),
+            user.getDraws()
+        );
     }
 }
