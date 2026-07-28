@@ -73,6 +73,9 @@ export function LoginPage() {
         <p className="auth-footer">
           No account? <Link to="/register">Register</Link>
         </p>
+        <p className="auth-footer">
+        <Link to="/forgot-password">Forgot password?</Link>
+        </p>
       </div>
     </div>
   );

@@ -113,7 +113,7 @@ public class AuthService
         return new MessageResponse("verification code sent");
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = AuthException.class)
     public TokenResponse login(LoginRequest req) 
     {
         Optional<UserEntity> lookup = req.usernameOrEmail().contains("@")
