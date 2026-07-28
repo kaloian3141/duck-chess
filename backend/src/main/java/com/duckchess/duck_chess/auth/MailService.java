@@ -10,7 +10,7 @@ public class MailService
 {
 
     private final JavaMailSender mailSender;
-    private final String fromAddress;
+    private final String fromField;
 
     public MailService(
             JavaMailSender mailSender,
@@ -18,13 +18,13 @@ public class MailService
     ) 
     {
         this.mailSender = mailSender;
-        this.fromAddress = fromAddress;
+        this.fromField = "Duck Chess <" + fromAddress + ">";
     }
 
     public void sendVerificationCode(String toEmail, String code) 
     {
         SimpleMailMessage msg = new SimpleMailMessage();
-        msg.setFrom(fromAddress);
+        msg.setFrom(fromField);
         msg.setTo(toEmail);
         msg.setSubject("Duck Chess — verify your email");
         msg.setText("""
@@ -37,9 +37,10 @@ public class MailService
         mailSender.send(msg);
     }
 
-    public void sendPasswordResetCode(String toEmail, String code) {
+    public void sendPasswordResetCode(String toEmail, String code) 
+    {
         SimpleMailMessage msg = new SimpleMailMessage();
-        msg.setFrom(fromAddress);
+        msg.setFrom(fromField);
         msg.setTo(toEmail);
         msg.setSubject("Duck Chess — password reset");
         msg.setText("""
