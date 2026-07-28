@@ -57,6 +57,15 @@ export function AuthProvider({ children })
     return authApi.resendVerification(email);
   }
 
+  async function forgotPassword(email) {
+    return authApi.forgotPassword(email);
+  }
+
+  async function resetPassword(email, code, newPassword) 
+  {
+    return authApi.resetPassword(email, code, newPassword);
+  }
+
   function logout() 
   {
     authApi.logout();
@@ -71,6 +80,8 @@ export function AuthProvider({ children })
     register,
     verifyEmail,
     resendVerification,
+    forgotPassword,
+    resetPassword,
     logout,
   };
 

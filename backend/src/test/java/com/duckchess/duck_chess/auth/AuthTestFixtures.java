@@ -70,4 +70,38 @@ public final class AuthTestFixtures
                 .expiresAt(OffsetDateTime.now().minusMinutes(1))
                 .build();
     }
+
+
+        // ---------- password resets ----------
+
+    public static PasswordResetEntity activeResetFor(Long userId, String code) 
+    {
+        return PasswordResetEntity.builder()
+                .id(200L)
+                .userId(userId)
+                .code(code)
+                .expiresAt(OffsetDateTime.now().plusMinutes(15))
+                .build();
+    }
+
+    public static PasswordResetEntity expiredResetFor(Long userId, String code) 
+    {
+        return PasswordResetEntity.builder()
+                .id(201L)
+                .userId(userId)
+                .code(code)
+                .expiresAt(OffsetDateTime.now().minusMinutes(1))
+                .build();
+    }
+
+    public static PasswordResetEntity usedResetFor(Long userId, String code) 
+    {
+        return PasswordResetEntity.builder()
+                .id(202L)
+                .userId(userId)
+                .code(code)
+                .expiresAt(OffsetDateTime.now().plusMinutes(15))
+                .usedAt(OffsetDateTime.now().minusMinutes(1))
+                .build();
+    }
 }

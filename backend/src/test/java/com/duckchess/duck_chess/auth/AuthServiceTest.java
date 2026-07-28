@@ -25,6 +25,7 @@ class AuthServiceTest
     private PasswordEncoder encoder;
     private JwtService jwt;
     private MailService mail;
+    private PasswordResetRepository resets;
     private AuthService service;
 
     @BeforeEach
@@ -32,12 +33,12 @@ class AuthServiceTest
     {
         users = mock(UserRepository.class);
         verifications = mock(EmailVerificationRepository.class);
+        resets = mock(PasswordResetRepository.class);
         encoder = mock(PasswordEncoder.class);
         jwt = mock(JwtService.class);
         mail = mock(MailService.class);
-        AuthProperties props = new AuthProperties(60, 7);
-
-        service = new AuthService(users, verifications, encoder, jwt, mail, props);
+        AuthProperties props = new AuthProperties(60, 7, 30);
+        service = new AuthService(users, verifications, resets, encoder, jwt, mail, props);
     }
 
 
@@ -328,5 +329,183 @@ class AuthServiceTest
         assertThat(ghostError).isNotNull();
         assertThat(wrongError).isNotNull();
         assertThat(ghostError.getMessage()).isEqualTo(wrongError.getMessage());
+    }
+
+        // ---------------- forgotPassword ----------------
+
+    @Test
+    void forgotPasswordSendsResetCodeForExistingUser() {
+        UserEntity user = verifiedUser();
+        when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+
+        MessageResponse resp = service.forgotPassword(user.getEmail());
+
+        assertThat(resp.message()).contains("if that email");
+
+        ArgumentCaptor<PasswordResetEntity> resetCaptor =
+                ArgumentCaptor.forClass(PasswordResetEntity.class);
+        verify(resets).save(resetCaptor.capture());
+        PasswordResetEntity r = resetCaptor.getValue();
+        assertThat(r.getUserId()).isEqualTo(user.getId());
+        assertThat(r.getCode()).matches("\\d{6}");
+        assertThat(r.getExpiresAt()).isAfter(OffsetDateTime.now().plusMinutes(29));
+
+        verify(mail).sendPasswordResetCode(eq(user.getEmail()), eq(r.getCode()));
+    }
+
+    @Test
+    void forgotPasswordAlsoWorksForUnverifiedUser() {
+        UserEntity user = unverifiedUser();
+        when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+
+        MessageResponse resp = service.forgotPassword(user.getEmail());
+
+        assertThat(resp.message()).contains("if that email");
+        verify(resets).save(any(PasswordResetEntity.class));
+        verify(mail).sendPasswordResetCode(eq(user.getEmail()), anyString());
+    }
+
+    @Test
+    void forgotPasswordReturnsGenericMessageForUnknownEmail() {
+        when(users.findByEmail("nobody@x.y")).thenReturn(Optional.empty());
+
+        MessageResponse resp = service.forgotPassword("nobody@x.y");
+
+        // Same message as the "found" case — no enumeration
+        assertThat(resp.message()).contains("if that email");
+        verify(resets, never()).save(any());
+        verify(mail, never()).sendPasswordResetCode(anyString(), anyString());
+    }
+
+    @Test
+    void forgotPasswordMessageIdenticalWhetherUserExistsOrNot() {
+        UserEntity user = verifiedUser();
+        when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(users.findByEmail("ghost@x.y")).thenReturn(Optional.empty());
+
+        String foundMsg = service.forgotPassword(user.getEmail()).message();
+        String notFoundMsg = service.forgotPassword("ghost@x.y").message();
+
+        assertThat(foundMsg).isEqualTo(notFoundMsg);
+    }
+
+    // ---------------- resetPassword ----------------
+
+    @Test
+    void resetPasswordUpdatesHashAndMarksCodeUsed() {
+        UserEntity user = verifiedUser();
+        PasswordResetEntity reset = activeResetFor(user.getId(), "123456");
+
+        when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(resets.findFirstByUserIdAndUsedAtIsNullOrderByCreatedAtDesc(user.getId()))
+                .thenReturn(Optional.of(reset));
+        when(encoder.encode("newpass99")).thenReturn("new-hash");
+
+        MessageResponse resp = service.resetPassword(
+                user.getEmail(), "123456", "newpass99");
+
+        assertThat(resp.message()).contains("password reset");
+        assertThat(user.getPasswordHash()).isEqualTo("new-hash");
+        assertThat(reset.getUsedAt()).isNotNull();
+    }
+
+    @Test
+    void resetPasswordDoesNotChangeVerifiedStatus() {
+        UserEntity user = unverifiedUser();
+        PasswordResetEntity reset = activeResetFor(user.getId(), "123456");
+
+        when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(resets.findFirstByUserIdAndUsedAtIsNullOrderByCreatedAtDesc(user.getId()))
+                .thenReturn(Optional.of(reset));
+        when(encoder.encode("newpass99")).thenReturn("new-hash");
+
+        service.resetPassword(user.getEmail(), "123456", "newpass99");
+
+        // Explicitly: password reset does NOT verify the email
+        assertThat(user.isEmailVerified()).isFalse();
+    }
+
+    @Test
+    void resetPasswordRejectsExpiredCode() {
+        UserEntity user = verifiedUser();
+        PasswordResetEntity reset = expiredResetFor(user.getId(), "123456");
+
+        when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(resets.findFirstByUserIdAndUsedAtIsNullOrderByCreatedAtDesc(user.getId()))
+                .thenReturn(Optional.of(reset));
+
+        assertThatThrownBy(() -> service.resetPassword(
+                user.getEmail(), "123456", "newpass99"))
+                .isInstanceOf(AuthException.class)
+                .hasMessageContaining("expired");
+
+        // Password unchanged, code not marked used
+        assertThat(user.getPasswordHash()).isEqualTo("hashed-password");
+        assertThat(reset.getUsedAt()).isNull();
+        verify(encoder, never()).encode(anyString());
+    }
+
+    @Test
+    void resetPasswordRejectsWrongCode() {
+        UserEntity user = verifiedUser();
+        PasswordResetEntity reset = activeResetFor(user.getId(), "123456");
+
+        when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(resets.findFirstByUserIdAndUsedAtIsNullOrderByCreatedAtDesc(user.getId()))
+                .thenReturn(Optional.of(reset));
+
+        assertThatThrownBy(() -> service.resetPassword(
+                user.getEmail(), "999999", "newpass99"))
+                .isInstanceOf(AuthException.class)
+                .hasMessage("invalid reset request");
+
+        assertThat(user.getPasswordHash()).isEqualTo("hashed-password");
+        assertThat(reset.getUsedAt()).isNull();
+    }
+
+    @Test
+    void resetPasswordRejectsUnknownEmail() {
+        when(users.findByEmail("ghost@x.y")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.resetPassword(
+                "ghost@x.y", "123456", "newpass99"))
+                .isInstanceOf(AuthException.class)
+                .hasMessage("invalid reset request");
+    }
+
+    @Test
+    void resetPasswordRejectsWhenNoActiveCode() {
+        UserEntity user = verifiedUser();
+        when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(resets.findFirstByUserIdAndUsedAtIsNullOrderByCreatedAtDesc(user.getId()))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.resetPassword(
+                user.getEmail(), "123456", "newpass99"))
+                .isInstanceOf(AuthException.class)
+                .hasMessage("invalid reset request");
+    }
+
+    @Test
+    void resetPasswordEnumerationProtection() {
+        // Unknown email, wrong code, and missing code all return the same message
+        UserEntity user = verifiedUser();
+        PasswordResetEntity reset = activeResetFor(user.getId(), "111111");
+
+        when(users.findByEmail("ghost@x.y")).thenReturn(Optional.empty());
+        when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(resets.findFirstByUserIdAndUsedAtIsNullOrderByCreatedAtDesc(user.getId()))
+                .thenReturn(Optional.of(reset));
+
+        AuthException ghostError = null, wrongCodeError = null;
+
+        try { service.resetPassword("ghost@x.y", "111111", "newpass99"); }
+        catch (AuthException e) { ghostError = e; }
+        try { service.resetPassword(user.getEmail(), "999999", "newpass99"); }
+        catch (AuthException e) { wrongCodeError = e; }
+
+        assertThat(ghostError).isNotNull();
+        assertThat(wrongCodeError).isNotNull();
+        assertThat(ghostError.getMessage()).isEqualTo(wrongCodeError.getMessage());
     }
 }

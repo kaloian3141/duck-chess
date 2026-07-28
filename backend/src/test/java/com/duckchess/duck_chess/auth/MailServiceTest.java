@@ -34,7 +34,7 @@ class MailServiceTest
         verify(mailSender).send(captor.capture());
         SimpleMailMessage sent = captor.getValue();
 
-        assertThat(sent.getFrom()).isEqualTo("noreply@duckchess.local");
+        assertThat(sent.getFrom()).isEqualTo("Duck Chess <noreply@duckchess.local>");
         assertThat(sent.getTo()).containsExactly("user@example.com");
         assertThat(sent.getSubject()).contains("verify");
         assertThat(sent.getText()).contains("123456");

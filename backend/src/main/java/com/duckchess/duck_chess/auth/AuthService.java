@@ -22,10 +22,12 @@ public class AuthService
     private final MailService mail;
     private final AuthProperties props;
     private final SecureRandom random = new SecureRandom();
+    private final PasswordResetRepository resets;
 
     public AuthService(
             UserRepository users,
             EmailVerificationRepository verifications,
+            PasswordResetRepository resets,
             PasswordEncoder encoder,
             JwtService jwt,
             MailService mail,
@@ -34,6 +36,7 @@ public class AuthService
     {
         this.users = users;
         this.verifications = verifications;
+        this.resets = resets;
         this.encoder = encoder;
         this.jwt = jwt;
         this.mail = mail;
@@ -110,7 +113,7 @@ public class AuthService
         return new MessageResponse("verification code sent");
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = AuthException.class)
     public TokenResponse login(LoginRequest req) 
     {
         Optional<UserEntity> lookup = req.usernameOrEmail().contains("@")
@@ -163,5 +166,52 @@ public class AuthService
             user.getLosses(),
             user.getDraws()
         );
+    }
+
+    @Transactional
+    public MessageResponse forgotPassword(String email) 
+    {
+        users.findByEmail(email).ifPresent(this::issueAndSendResetCode);
+        return new MessageResponse(
+                "if that email is registered, a reset code has been sent");
+    }
+
+    @Transactional
+    public MessageResponse resetPassword(String email, String code, String newPassword) 
+    {
+        UserEntity user = users.findByEmail(email)
+                .orElseThrow(() -> new AuthException("invalid reset request"));
+
+        PasswordResetEntity reset = resets
+                .findFirstByUserIdAndUsedAtIsNullOrderByCreatedAtDesc(user.getId())
+                .orElseThrow(() -> new AuthException("invalid reset request"));
+
+        if(reset.getExpiresAt().isBefore(OffsetDateTime.now())) 
+        {
+            throw new AuthException("reset code expired");
+        }
+        if(!reset.getCode().equals(code)) 
+        {
+            throw new AuthException("invalid reset request");
+        }
+
+        user.setPasswordHash(encoder.encode(newPassword));
+        reset.setUsedAt(OffsetDateTime.now());
+
+        return new MessageResponse("password reset; log in with your new password");
+    }
+
+    private void issueAndSendResetCode(UserEntity user) 
+    {
+        String code = String.format("%06d", random.nextInt(1_000_000));
+
+        PasswordResetEntity reset = PasswordResetEntity.builder()
+                .userId(user.getId())
+                .code(code)
+                .expiresAt(OffsetDateTime.now().plusMinutes(props.passwordResetExpirationMinutes()))
+                .build();
+        resets.save(reset);
+
+        mail.sendPasswordResetCode(user.getEmail(), code);
     }
 }

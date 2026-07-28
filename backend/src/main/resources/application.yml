@@ -39,3 +39,4 @@ app:
   verification:
     expiration-minutes: 60
     unverified-user-expiration-days: 7
+    password-reset-expiration-minutes: 30

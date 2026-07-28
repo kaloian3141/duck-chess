@@ -35,3 +35,14 @@ export async function getCurrentUser()
 {
   return http.get('/auth/me');
 }
+
+
+export async function forgotPassword(email) 
+{
+  return http.post('/auth/forgot-password', { email });
+}
+
+export async function resetPassword(email, code, newPassword) 
+{
+  return http.post('/auth/reset-password', { email, code, newPassword });
+}

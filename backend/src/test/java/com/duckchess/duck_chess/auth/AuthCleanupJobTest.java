@@ -7,6 +7,7 @@ import org.mockito.ArgumentCaptor;
 import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class AuthCleanupJobTest 
@@ -14,6 +15,7 @@ class AuthCleanupJobTest
 
     private UserRepository users;
     private EmailVerificationRepository verifications;
+    private PasswordResetRepository resets;
     private AuthCleanupJob job;
 
     @BeforeEach
@@ -21,8 +23,9 @@ class AuthCleanupJobTest
     {
         users = mock(UserRepository.class);
         verifications = mock(EmailVerificationRepository.class);
-        AuthProperties props = new AuthProperties(60, 7);
-        job = new AuthCleanupJob(users, verifications, props);
+        resets = mock(PasswordResetRepository.class);
+        AuthProperties props = new AuthProperties(60, 7, 30);
+        job = new AuthCleanupJob(users, verifications, resets, props);
     }
 
     @Test
@@ -30,6 +33,7 @@ class AuthCleanupJobTest
     {
         when(users.deleteUnverifiedOlderThan(any())).thenReturn(3);
         when(verifications.deleteVerifiedOrExpired(any())).thenReturn(5);
+        when(resets.deleteUsedOrExpired(any())).thenReturn(2);
 
         job.purgeStale();
 
@@ -41,14 +45,16 @@ class AuthCleanupJobTest
     }
 
     @Test
-    void runsBothCleanupsEvenWhenFirstReturnsZero() 
+    void runsAllThreeCleanupsEvenWhenAllReturnZero()
     {
         when(users.deleteUnverifiedOlderThan(any())).thenReturn(0);
         when(verifications.deleteVerifiedOrExpired(any())).thenReturn(0);
+        when(resets.deleteUsedOrExpired(any())).thenReturn(0);
 
         job.purgeStale();
 
         verify(users).deleteUnverifiedOlderThan(any());
         verify(verifications).deleteVerifiedOrExpired(any());
+        verify(resets).deleteUsedOrExpired(any());
     }
 }
