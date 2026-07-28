@@ -50,4 +50,15 @@ public class AuthController
         Long userId = (Long) auth.getPrincipal();
         return authService.getCurrentUser(userId);
     }
+    @PostMapping("/forgot-password")
+    public MessageResponse forgotPassword(@Valid @RequestBody ForgotPasswordRequest req) 
+    {
+        return authService.forgotPassword(req.email());
+    }
+
+    @PostMapping("/reset-password")
+    public MessageResponse resetPassword(@Valid @RequestBody ResetPasswordRequest req) 
+    {
+        return authService.resetPassword(req.email(), req.code(), req.newPassword());
+    }
 }

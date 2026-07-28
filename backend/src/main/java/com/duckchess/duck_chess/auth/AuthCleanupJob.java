@@ -4,7 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 
@@ -16,35 +15,39 @@ public class AuthCleanupJob
 
     private final UserRepository users;
     private final EmailVerificationRepository verifications;
+    private final PasswordResetRepository resets;
     private final AuthProperties props;
 
     public AuthCleanupJob(
             UserRepository users,
             EmailVerificationRepository verifications,
+            PasswordResetRepository resets,
             AuthProperties props
     ) 
     {
         this.users = users;
         this.verifications = verifications;
+        this.resets = resets;
         this.props = props;
     }
 
     @Scheduled(cron = "0 0 3 * * *")
-    @Transactional
     public void purgeStale() 
     {
         OffsetDateTime userCutoff = OffsetDateTime.now()
                 .minusDays(props.unverifiedUserExpirationDays());
-        OffsetDateTime codeCutoff = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
 
         int usersDeleted = users.deleteUnverifiedOlderThan(userCutoff);
-        int codesDeleted = verifications.deleteVerifiedOrExpired(codeCutoff);
+        int codesDeleted = verifications.deleteVerifiedOrExpired(now);
+        int resetsDeleted = resets.deleteUsedOrExpired(now);
 
-        if(usersDeleted > 0 || codesDeleted > 0) 
+        if(usersDeleted > 0 || codesDeleted > 0 || resetsDeleted > 0)
         {
-            log.info("Cleanup complete: purged {} unverified users, {} used/expired codes",
-                    usersDeleted, codesDeleted);
+            log.info(
+                "Cleanup complete: purged {} unverified users, {} used/expired codes, {} used/expired resets",
+                usersDeleted, codesDeleted, resetsDeleted
+            );
         }
     }
-
 }
