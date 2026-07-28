@@ -21,7 +21,7 @@ class AuthCleanupJobTest
     {
         users = mock(UserRepository.class);
         verifications = mock(EmailVerificationRepository.class);
-        AuthProperties props = new AuthProperties(60, 7);
+        AuthProperties props = new AuthProperties(60, 7, 30);
         job = new AuthCleanupJob(users, verifications, props);
     }
 

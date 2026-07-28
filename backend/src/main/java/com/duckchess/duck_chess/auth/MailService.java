@@ -36,4 +36,22 @@ public class MailService
                 """.formatted(code));
         mailSender.send(msg);
     }
+
+    public void sendPasswordResetCode(String toEmail, String code) {
+        SimpleMailMessage msg = new SimpleMailMessage();
+        msg.setFrom(fromAddress);
+        msg.setTo(toEmail);
+        msg.setSubject("Duck Chess — password reset");
+        msg.setText("""
+                A password reset was requested for your Duck Chess account.
+
+                Your reset code is: %s
+
+                This code expires in 30 minutes.
+
+                If you didn't request this, you can safely ignore this email —
+                your password won't change unless someone enters this code.
+                """.formatted(code));
+        mailSender.send(msg);
+    }
 }
