@@ -58,4 +58,16 @@ public class JwtService {
                 .parseSignedClaims(token)
                 .getPayload();
     }
+    public boolean isValid(String token) 
+    {
+        try 
+        {
+            parse(token);
+            return true;
+        } 
+        catch(Exception e)
+        {
+            return false;
+        }
+    }
 }
