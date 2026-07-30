@@ -6,6 +6,7 @@ import com.duckchess.duck_chess.chess.Move;
 import com.duckchess.duck_chess.chess.Piece;
 import com.duckchess.duck_chess.chess.PieceType;
 import com.duckchess.duck_chess.chess.Square;
+import com.duckchess.duck_chess.chess.Zobrist;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -333,6 +334,7 @@ public final class MoveGenerator
             board.setFullmoveNumber(board.fullmoveNumber() + 1);
         }
         board.setSideToMove(side.opponent());
+        board.setHash(Zobrist.computeHash(board));
     }
 
     public static void unmake(Board board, int move, UndoInfo undo) 
@@ -380,5 +382,6 @@ public final class MoveGenerator
         board.setEnPassantSquare(undo.priorEnPassantSquare);
         board.setHalfmoveClock(undo.priorHalfmoveClock);
         board.setDuckSquare(undo.priorDuckSquare);
+        board.setHash(Zobrist.computeHash(board));
     }
 }

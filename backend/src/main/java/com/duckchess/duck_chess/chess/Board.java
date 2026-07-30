@@ -37,12 +37,22 @@ public final class Board
     /** Duck's square, or Square.NONE for standard chess. */
     private int duckSquare;
 
+
+    private long hash;
+
     public Board() 
     {
         clear();
     }
 
-
+    public long hash()
+    {
+        return hash;
+    }
+    public void setHash(long hash)
+    {
+        this.hash = hash;
+    }
     public byte get(int square) 
     {
         return squares[square];
@@ -131,6 +141,7 @@ public final class Board
         halfmoveClock = 0;
         fullmoveNumber = 1;
         duckSquare = Square.NONE;
+        hash = 0L;
     }
 
     public static Board startingPosition() 
@@ -158,6 +169,7 @@ public final class Board
         b.halfmoveClock = this.halfmoveClock;
         b.fullmoveNumber = this.fullmoveNumber;
         b.duckSquare = this.duckSquare;
+        b.hash = this.hash;
         return b;
     }
 

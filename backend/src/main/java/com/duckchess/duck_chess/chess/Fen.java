@@ -36,6 +36,7 @@ public final class Fen
         b.setEnPassantSquare(parts[3].equals("-") ? Square.NONE : Square.fromName(parts[3]));
         b.setHalfmoveClock(parts.length >= 5 ? Integer.parseInt(parts[4]) : 0);
         b.setFullmoveNumber(parts.length >= 6 ? Integer.parseInt(parts[5]) : 1);
+        b.setHash(Zobrist.computeHash(b));
         return b;
     }
 
